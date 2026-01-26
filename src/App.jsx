@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { TodoForm } from "./components/TodoForm/TodoForm";
-import styles from "./App.module.css";
 import { TodoList } from "./components/TodoList/TodoList";
+import styles from "./App.module.css";
 
 const TODOS_DEFAULT = [
   {
@@ -30,7 +30,7 @@ const TODOS_DEFAULT = [
   },
   {
     id: "4",
-    name: "Test Todo onlye with a name",
+    name: "Test Todo only with a name",
     description: "",
     deadline: "",
     priority: "none",
@@ -39,7 +39,7 @@ const TODOS_DEFAULT = [
 ];
 
 function App() {
-  const [todos, setTodos] = useState([TODOS_DEFAULT]);
+  const [todos, setTodos] = useState(TODOS_DEFAULT);
 
   function handleCreate(newTodo) {
     setTodos((prevTodos) => [
@@ -57,8 +57,7 @@ function App() {
 
       <div className={styles.AppContainer}>
         <TodoForm onCreate={handleCreate} />
-        <TodoList todos={todos}/>
-        {JSON.stringify(todos)}
+        <TodoList todos={todos} />
       </div>
     </div>
   );
