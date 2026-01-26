@@ -31,7 +31,7 @@ const TODOS_DEFAULT = [
   },
   {
     id: "4",
-    name: "Test Todo onlye with a name",
+    name: "Test Todo only with a name",
     description: "",
     deadline: "",
     priority: "none",
