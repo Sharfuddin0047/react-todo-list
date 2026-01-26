@@ -2,6 +2,7 @@ import { useState } from "react";
 import { TodoForm } from "./components/TodoForm/TodoForm";
 import { TodoList } from "./components/TodoList/TodoList";
 import styles from "./App.module.css";
+import { TodoFilters } from "./components/TodoFilters/TodoFilters";
 
 const TODOS_DEFAULT = [
   {
@@ -50,8 +51,12 @@ function App() {
 
   function handleUpdate(id, newTodo) {
     setTodos((prevTodos) =>
-      prevTodos.map((todo) => (todo.id === id ? newTodo : todo))
+      prevTodos.map((todo) => (todo.id === id ? newTodo : todo)),
     );
+  }
+
+  function handleDelete(id) {
+    setTodos((prevTodos) => prevTodos.filter((todo) => todo.id !== id));
   }
 
   return (
@@ -63,7 +68,12 @@ function App() {
 
       <div className={styles.AppContainer}>
         <TodoForm onCreate={handleCreate} />
-        <TodoList todos={todos} onUpdate={handleUpdate} />
+        <TodoFilters />
+        <TodoList
+          todos={todos}
+          onUpdate={handleUpdate}
+          onDelete={handleDelete}
+        />
       </div>
     </div>
   );
