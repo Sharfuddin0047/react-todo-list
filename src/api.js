@@ -14,7 +14,7 @@ export const api = {
       return http
         .get("todos", { params })
         .catch((error) =>
-          error?.response.status === 404 ? [] : Promise.reject(error)
+          error?.response.status === 404 ? [] : Promise.reject(error),
         );
     },
 
