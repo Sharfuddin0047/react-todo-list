@@ -1,33 +1,12 @@
-import { useEffect, useState } from "react";
 import { TodoForm } from "./components/TodoForm/TodoForm";
 import { TodoList } from "./components/TodoList/TodoList";
 import { TodoFilters } from "./components/TodoFilters/TodoFilters";
+import { Alert } from "./components/Alert/Alert";
+import { useTodos } from "./hooks/todo";
 import styles from "./App.module.css";
-import { api } from "./api";
 
 function App() {
-  const [todos, setTodos] = useState([]);
-  const [filters, setFilters] = useState({});
-
-  function fetchTodos() {
-    api.todos.getAll(filters).then(setTodos);
-  }
-
-  useEffect(() => {
-    fetchTodos();
-  }, [filters]);
-
-  function handleCreate(newTodo) {
-    api.todos.create(newTodo).then(fetchTodos);
-  }
-
-  function handleUpdate(id, newTodo) {
-    api.todos.update(id, newTodo).then(fetchTodos);
-  }
-
-  function handleDelete(id) {
-    api.todos.delete(id).then(fetchTodos);
-  }
+  const todos = useTodos();
 
   return (
     <div className={styles.App}>
@@ -37,12 +16,15 @@ function App() {
       </header>
 
       <div className={styles.AppContainer}>
-        <TodoForm onCreate={handleCreate} />
-        <TodoFilters onFilter={setFilters} />
+        {!!todos.error.message && (
+          <Alert onClear={todos.error.clear}>{todos.error.message}</Alert>
+        )}
+        <TodoForm onCreate={todos.create} />
+        <TodoFilters onFilter={todos.filter} />
         <TodoList
-          todos={todos}
-          onUpdate={handleUpdate}
-          onDelete={handleDelete}
+          todos={todos.data}
+          onUpdate={todos.update}
+          onDelete={todos.delete}
         />
       </div>
     </div>
