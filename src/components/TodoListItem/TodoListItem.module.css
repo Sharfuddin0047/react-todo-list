@@ -42,3 +42,30 @@
 .Controls input {
   font-size: 10px;
 }
+
+.Tooltip {
+  position: relative;
+  cursor: pointer;
+}
+
+.Tooltip::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 125%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #333;
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  font-size: 0.8rem;
+}
+
+.Tooltip:hover::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(-5px);
+}

@@ -51,8 +51,20 @@ export function TodoListItem({ todo, onUpdate, onDelete }) {
       </div>
 
       <div className={styles.Controls}>
-        <button onClick={() => setIsEditing(true)}>📝</button>
-        <button onClick={() => onDelete(todo.id)}>🗑️</button>
+        <button
+          onClick={() => setIsEditing(true)}
+          className={styles.Tooltip}
+          data-tooltip="Edit"
+        >
+          📝
+        </button>
+        <button
+          onClick={() => onDelete(todo.id)}
+          className={styles.Tooltip}
+          data-tooltip="Delete"
+        >
+          🗑️
+        </button>
       </div>
     </div>
   );
@@ -66,8 +78,12 @@ export function TodoListItem({ todo, onUpdate, onDelete }) {
       <TodoFormFields todo={todo} register={register} errors={errors} />
 
       <div className={styles.Controls}>
-        <input type="submit" value="💾" />
-        <input type="reset" value="❌" />
+        <span className={styles.Tooltip} data-tooltip="Save">
+          <input type="submit" value="💾" />
+        </span>
+        <span className={styles.Tooltip} data-tooltip="Cancel">
+          <input type="reset" value="❌" />
+        </span>
       </div>
     </form>
   );
