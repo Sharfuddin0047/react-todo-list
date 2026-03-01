@@ -4,6 +4,10 @@ COPY package*.json ./
 RUN npm install
 
 COPY . .
+
+ARG VITE_MOCKAPI_BASE_URL
+ENV VITE_MOCKAPI_BASE_URL=$VITE_MOCKAPI_BASE_URL
+
 RUN npm run build
 
 FROM nginx:alpine
