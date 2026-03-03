@@ -3,134 +3,89 @@ pipeline {
 
     environment {
         DOCKER_USER = 'sharfuddin47'
-        IMAGE_NAME = 'to_do_app'
+        IMAGE_NAME = 'todo-app-ecs'
+        AWS_DOCKER_REGISTRY = '382934810609.dkr.ecr.us-east-1.amazonaws.com'
         BUILD_TAG   = "${env.BUILD_NUMBER}"
-        PROD_SERVER = "ec2-54-234-234-0.compute-1.amazonaws.com"
+        AWS_DEFAULT_REGION = 'us-east-1'
+        AWS_ECS_CLUSTER = 'todo-app-cluster-prod'
+        AWS_ECS_SERVICE_PROD = 'TodoApp-TaskDefinition-Prod-service'
+        AWS_ECS_TD_PROD = 'TodoApp-TaskDefinition-Prod'
+        MOCK_API_URL = credentials('mock-api-url')
     }
 
     stages {
-        stage('cleanup') {
+        stage('Code Checkout') {
             steps {
-                cleanWs()
+                echo 'this is cloning the code'
+                git url: 'https://github.com/Sharfuddin0047/react-todo-list.git', branch: 'master'
             }
         }
-        stage('Checkout') {
-            steps {
-                echo 'This stage copies the source code'
-                git url: 'https://github.com/Sharfuddin0047/react-todo-list.git' ,branch: 'master'
-            }
-        }
-        stage('Build and server setup') {
-            parallel {
-                stage('Build') {
-                    steps {
-                        echo 'This stage build app'
-                        sh '''
-                            docker build -t ${DOCKER_USER}/${IMAGE_NAME}:${BUILD_TAG} .
-                        '''
-                    }
-                }
-                stage('Setup-test-server') {
-                    environment {
-                        TEST_SERVER_DNS = credentials('ec2-test-server-dns')
-                    }
-                    steps {
-                        sshagent(['ssh-test-server']) {
-                            sh '''
-                    ssh-keyscan -H $TEST_SERVER_DNS >> ~/.ssh/known_hosts
-                    scp ./scripts/setup.sh ubuntu@$TEST_SERVER_DNS:/tmp/setup.sh
-                    ssh ubuntu@$TEST_SERVER_DNS "bash /tmp/setup.sh"
-                '''
-                        }
-                    }
-                }
-                stage('Setup-prod-server') {
-                    environment {
-                        PROD_SERVER_DNS = credentials('ec2-prod-server-dns')
-                    }
-                    steps {
-                        sshagent(['ssh-prod-server']) {
-                            sh '''
-                    ssh-keyscan -H $PROD_SERVER_DNS >> ~/.ssh/known_hosts
-                    scp ./scripts/setup.sh ubuntu@$PROD_SERVER_DNS:/tmp/setup.sh
-                    ssh ubuntu@$PROD_SERVER_DNS "bash /tmp/setup.sh"
-                '''
-                        }
-                    }
-                }
-            }
-        }
-        stage('Docker Login and Push') {
-            steps {
-                echo 'This stage push app'
-                withCredentials([usernamePassword(credentialsId: 'dockerPAT', usernameVariable: 'DOCKER_USERNAME',
-                passwordVariable: 'DOCKER_PASS')]){
-                    sh '''
-                        echo $DOCKER_PASS | docker login -u$DOCKER_USERNAME --password-stdin
-                        echo "docker login successful"
-                        docker push ${DOCKER_USER}/${IMAGE_NAME}:${BUILD_TAG}
-                        docker tag ${DOCKER_USER}/${IMAGE_NAME}:${BUILD_TAG} ${DOCKER_USER}/${IMAGE_NAME}:latest
-                        docker push ${DOCKER_USER}/${IMAGE_NAME}:latest
-                    '''
-                }
-            }
-        }
-        stage('Deploy on Test Server') {
-                    environment {
-                        TEST_SERVER_DNS = credentials('ec2-test-server-dns')
-                    }
-                    steps {
-                        sshagent(['ssh-test-server']) {
-                            sh '''
-                                ssh ubuntu@$TEST_SERVER_DNS "
-                                    docker pull ${DOCKER_USER}/${IMAGE_NAME}:${BUILD_TAG}
-                                    docker rm -f ${IMAGE_NAME} || echo "No old container"  
-                                    docker run -d --name ${IMAGE_NAME} -p 80:80 ${DOCKER_USER}/${IMAGE_NAME}:${BUILD_TAG}
 
-                                "
-                            '''
-                        }
-                    }
-                }
-        stage('Approval') {
+        stage('Build Docker Image') {
             steps {
-                timeout(time: 1, unit: 'HOURS') {
-                    input message: 'Ready to deploy', ok: 'Yes, I am sure to Deploy'
-                }
-                
+                sh '''
+                    docker build -t $IMAGE_NAME:$BUILD_TAG --build-arg VITE_MOCKAPI_BASE_URL=$MOCK_API_URL .
+                '''
             }
         }
-        stage('Deploy on Prod Server') {
-                    environment {
-                        PROD_SERVER_DNS = credentials('ec2-prod-server-dns')
-                    }
-                    steps {
-                        sshagent(['ssh-prod-server']) {
-                            sh '''
-                                ssh ubuntu@$PROD_SERVER_DNS "
-                                    docker pull ${DOCKER_USER}/${IMAGE_NAME}:${BUILD_TAG}
-                                    docker rm -f ${IMAGE_NAME} || echo "No old container"  
-                                    docker run -d --name ${IMAGE_NAME} -p 80:80 ${DOCKER_USER}/${IMAGE_NAME}:${BUILD_TAG}
-                                "
-                            '''
-                        }
-                    }
-                }
-        stage('Test Frontend App') {
-                steps {
+
+        stage('Push to ECR') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'my-aws',
+                    passwordVariable: 'AWS_SECRET_ACCESS_KEY',
+                    usernameVariable: 'AWS_ACCESS_KEY_ID')]) {
                     sh '''
-                        for i in {1..5}; do
-                            if curl -s --fail http://${PROD_SERVER}/ > /dev/null; then 
-                                echo "Frontend app is live"
-                                exit 0
-                            fi
-                            echo "waiting for app to be ready..."
-                            sleep 5
-                        done
-                        echo "frontend app did not start in time"
-                        exit 1
+                        docker tag $IMAGE_NAME:$BUILD_TAG $AWS_DOCKER_REGISTRY/$IMAGE_NAME:$BUILD_TAG
+                        aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_DOCKER_REGISTRY
+                        docker push $AWS_DOCKER_REGISTRY/$IMAGE_NAME:$BUILD_TAG
                     '''
+                    }
+            }
+        }
+
+        stage('Push to DockerHub') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'dockerPAT',
+                    usernameVariable: 'DOCKER_USERNAME',
+                    passwordVariable: 'DOCKER_PASSWORD')]) {
+                    sh '''
+                        docker tag ${IMAGE_NAME}:${BUILD_TAG} ${DOCKER_USERNAME}/${IMAGE_NAME}:${BUILD_TAG}
+                        echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
+                        docker push ${DOCKER_USERNAME}/${IMAGE_NAME}:${BUILD_TAG}
+                        docker tag ${DOCKER_USERNAME}/${IMAGE_NAME}:${BUILD_TAG} ${DOCKER_USERNAME}/${IMAGE_NAME}:latest
+                        docker push ${DOCKER_USERNAME}/${IMAGE_NAME}:latest
+                    '''
+                    }
+            }
+        }
+
+        stage('Deploy to AWS') {
+            agent {
+                docker {
+                    image 'amazon/aws-cli'
+                    reuseNode true
+                    args "-u root --entrypoint=''"
                 }
             }
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'my-aws',
+                    passwordVariable: 'AWS_SECRET_ACCESS_KEY',
+                    usernameVariable: 'AWS_ACCESS_KEY_ID')]) {
+                    sh '''
+                        aws --version
+                        sed -i "s/#APP_VERSION#/$BUILD_TAG/g" aws/task-definition-prod.json
+                        yum install jq -y
+                        LATEST_TD_REVISION=$(aws ecs register-task-definition --cli-input-json file://aws/task-definition-prod.json | jq '.taskDefinition.revision')
+                        aws ecs update-service --cluster $AWS_ECS_CLUSTER --service $AWS_ECS_SERVICE_PROD --task-definition $AWS_ECS_TD_PROD:$LATEST_TD_REVISION
+                        aws ecs wait services-stable --cluster $AWS_ECS_CLUSTER --services $AWS_ECS_SERVICE_PROD
+                    '''
+                    }
+            }
+        }
+    }
+    post {
+        cleanup {
+            cleanWs() // Use cleanup instead of always for workspace cleanup to preserve logs for notifications and debugging
+        }
     }
 }
