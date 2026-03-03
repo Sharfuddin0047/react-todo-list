@@ -6,7 +6,7 @@
     "containerDefinitions": [
         {
             "name": "TodoApp",
-            "image": "nginx:1.27-alpine",
+            "image": "382934810609.dkr.ecr.us-east-1.amazonaws.com/todo-app-ecs:34",
             "portMappings": [
                 {
                     "name": "nginx-80-tcp",
